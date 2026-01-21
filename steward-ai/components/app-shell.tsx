@@ -21,6 +21,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-dvh bg-[var(--background)] text-[var(--foreground)] relative">
+      {/* Meteors for dark theme */}
+      {theme === "dark" && (
+        <>
+          <div className="meteor meteor-1" />
+          <div className="meteor meteor-2" />
+          <div className="meteor meteor-3" />
+        </>
+      )}
       <div
         className={cn(
           // Full-width, desktop-web style (left aligned, no max-width container)
