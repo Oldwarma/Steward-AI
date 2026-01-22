@@ -25,6 +25,7 @@ function getSpeechRecognition(): any | null {
 export default function ChatPage() {
   const { t, locale } = useI18n();
   const [input, setInput] = React.useState("");
+  const [hasSpeechRecognition, setHasSpeechRecognition] = React.useState(false);
   const [messages, setMessages] = React.useState<Msg[]>([
     {
       role: "assistant",
@@ -34,6 +35,12 @@ export default function ChatPage() {
   const [isSending, setIsSending] = React.useState(false);
   const [isListening, setIsListening] = React.useState(false);
   const recognitionRef = React.useRef<any | null>(null);
+
+  React.useEffect(() => {
+    // Avoid hydration mismatch: server can't know SpeechRecognition availability.
+    // Start with a deterministic value, then detect on client after mount.
+    setHasSpeechRecognition(Boolean(getSpeechRecognition()));
+  }, []);
 
   React.useEffect(() => {
     const SR = getSpeechRecognition();
@@ -167,7 +174,7 @@ export default function ChatPage() {
                   type="button"
                   variant="secondary"
                   onClick={toggleMic}
-                  disabled={!getSpeechRecognition()}
+                  disabled={!hasSpeechRecognition}
                 >
                   {isListening ? (
                     <MicOff className="size-4" />

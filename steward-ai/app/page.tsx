@@ -41,11 +41,11 @@ export default function Home() {
               >
                 {t.home.viewAnalytics}
               </Button>
-            </Link>
+            </Link> 
           </div>
         </div>
-      </section>
-
+      </section> 
+ 
       <section className="grid grid-cols-1 gap-6 md:grid-cols-3">
         <Card className="transition-all duration-200 hover:-translate-y-1 hover:border-[var(--primary)]/60 hover:shadow-[0_18px_45px_rgba(15,23,42,0.7)]">
           <CardHeader>

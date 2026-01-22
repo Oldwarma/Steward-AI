@@ -12,26 +12,21 @@ type ThemeContextType = {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("theme");
-      if (saved === "dark" || saved === "indigo") return saved;
-    }
-    return "indigo";
-  });
+  // Keep the first client render identical to the server render to avoid hydration mismatch.
+  // Start with a deterministic default, then sync from localStorage after mount.
+  const [theme, setThemeState] = useState<Theme>("indigo");
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("theme", theme);
-      document.documentElement.setAttribute("data-theme", theme);
-    }
-  }, [theme]);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      document.documentElement.setAttribute("data-theme", theme);
+    const saved = localStorage.getItem("theme");
+    if (saved === "dark" || saved === "indigo") {
+      setThemeState(saved);
     }
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem("theme", theme);
+    document.documentElement.setAttribute("data-theme", theme);
+  }, [theme]);
 
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);

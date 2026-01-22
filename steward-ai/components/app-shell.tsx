@@ -6,6 +6,7 @@ import { BarChart3, MessageSquareText, Sparkles, Languages, Palette } from "luci
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/contexts/i18n-context";
 import { useTheme, Theme } from "@/contexts/theme-context";
+import { MeteorLayer } from "@/components/meteor-layer";
 
 const navItems = [
   { href: "/", key: "home" as const, icon: Sparkles },
@@ -21,14 +22,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-dvh bg-[var(--background)] text-[var(--foreground)] relative">
-      {/* Meteors for dark theme */}
-      {theme === "dark" && (
-        <>
-          <div className="meteor meteor-1" />
-          <div className="meteor meteor-2" />
-          <div className="meteor meteor-3" />
-        </>
-      )}
+      {/* Romantic meteor shower (dark theme only) */}
+      <MeteorLayer enabled={theme === "dark"} />
       <div
         className={cn(
           // Full-width, desktop-web style (left aligned, no max-width container)

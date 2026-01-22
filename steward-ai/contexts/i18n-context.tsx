@@ -12,18 +12,18 @@ type I18nContextType = {
 const I18nContext = createContext<I18nContextType | undefined>(undefined);
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("locale");
-      if (saved === "zh" || saved === "en") return saved;
-    }
-    return "zh";
-  });
+  // Same hydration rule as theme: deterministic first render, then sync after mount.
+  const [locale, setLocaleState] = useState<Locale>("zh");
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("locale", locale);
+    const saved = localStorage.getItem("locale");
+    if (saved === "zh" || saved === "en") {
+      setLocaleState(saved);
     }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("locale", locale);
   }, [locale]);
 
   const setLocale = (newLocale: Locale) => {
