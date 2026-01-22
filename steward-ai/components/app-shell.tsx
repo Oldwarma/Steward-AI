@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, MessageSquareText, Sparkles, Languages, Palette } from "lucide-react";
+import { BarChart3, MessageSquareText, Sparkles, Languages, Palette, Github } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/contexts/i18n-context";
 import { useTheme, Theme } from "@/contexts/theme-context";
@@ -84,6 +84,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               );
             })}
           </nav>
+
+          <div className="mt-6 pt-5 border-t border-[var(--border)]">
+            <a
+              href="https://github.com/Oldwarma/Steward-AI"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-[var(--muted)] transition-colors duration-150 hover:bg-white/5 hover:text-white"
+              title="GitHub Repository"
+            >
+              <Github className="size-4" />
+              <span>GitHub</span>
+            </a>
+          </div>
         </aside>
 
         <div className="min-w-0">
