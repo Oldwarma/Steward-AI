@@ -7,6 +7,8 @@ import { cn } from "@/lib/utils";
 import { useI18n } from "@/contexts/i18n-context";
 import { useTheme, Theme } from "@/contexts/theme-context";
 import { MeteorLayer } from "@/components/meteor-layer";
+import { useSession, signOut } from "@/lib/auth-client";
+import { LogIn, LogOut, User } from "lucide-react";
 
 const navItems = [
   { href: "/", key: "home" as const, icon: Sparkles },
@@ -19,6 +21,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isAnalytics = pathname?.startsWith("/analytics");
   const { locale, setLocale, t } = useI18n();
   const { theme, setTheme } = useTheme();
+  const { data: session, isPending } = useSession();
 
   return (
     <div className="min-h-dvh bg-[var(--background)] text-[var(--foreground)] relative">
@@ -85,7 +88,40 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             })}
           </nav>
 
-          <div className="mt-6 pt-5 border-t border-[var(--border)]">
+          <div className="mt-6 space-y-2">
+            {/* Login Status */}
+            <div className="rounded-xl border border-[var(--border)] bg-black/10 p-3">
+              {isPending ? (
+                <div className="flex items-center gap-2 text-xs text-[var(--muted)]">
+                  <div className="size-2 rounded-full bg-[var(--muted)] animate-pulse" />
+                  <span>Loading...</span>
+                </div>
+              ) : session?.user ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-xs text-[var(--muted)]">
+                    <User className="size-3" />
+                    <span className="truncate">{session.user.name || session.user.email}</span>
+                  </div>
+                  <button
+                    onClick={() => signOut()}
+                    className="flex w-full items-center gap-2 rounded-lg px-2 py-1 text-[10px] text-[var(--muted)] transition-colors hover:bg-white/5 hover:text-white"
+                  >
+                    <LogOut className="size-3" />
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              ) : (
+                <Link
+                  href="/login"
+                  className="flex items-center gap-2 rounded-lg px-2 py-1 text-[10px] text-[var(--muted)] transition-colors hover:bg-white/5 hover:text-white"
+                >
+                  <LogIn className="size-3" />
+                  <span>Sign In</span>
+                </Link>
+              )}
+            </div>
+
+            {/* GitHub Link */}
             <a
               href="https://github.com/Oldwarma/Steward-AI"
               target="_blank"
