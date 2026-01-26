@@ -5,7 +5,7 @@ import { Github, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useSession } from "@/lib/auth-client";
+import { useSession, signIn } from "@/lib/auth-client";
 import { ThemeProvider } from "@/contexts/theme-context";
 import { I18nProvider } from "@/contexts/i18n-context";
 
@@ -27,7 +27,9 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       const redirect = searchParams.get("redirect") || "/";
-      window.location.href = `/api/auth/sign-in/github?redirect=${encodeURIComponent(redirect)}`;
+      await signIn("github", { redirect });
+      // signIn will handle the redirect, but if it doesn't, reset loading state
+      setTimeout(() => setIsLoading(false), 2000);
     } catch (error) {
       console.error("Login error:", error);
       setIsLoading(false);

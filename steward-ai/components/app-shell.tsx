@@ -99,8 +99,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               ) : session?.user ? (
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-xs text-[var(--muted)]">
-                    <User className="size-3" />
-                    <span className="truncate">{session.user.name || session.user.email}</span>
+                    {session.user.image ? (
+                      <img
+                        src={session.user.image}
+                        alt={session.user.name || session.user.email || "User"}
+                        className="size-6 rounded-full border border-[var(--border)]"
+                      />
+                    ) : (
+                      <div className="grid size-6 place-items-center rounded-full bg-[var(--primary)]/20 border border-[var(--border)]">
+                        <User className="size-3 text-[var(--primary)]" />
+                      </div>
+                    )}
+                    <span className="truncate flex-1">{session.user.name || session.user.email}</span>
                   </div>
                   <button
                     onClick={() => signOut()}

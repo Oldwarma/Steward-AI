@@ -61,10 +61,10 @@ model Session {
 model Verification {
   id         String   @id @default(cuid())
   identifier String
-  value      String
+  value      String   @db.Text
   expiresAt  DateTime
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  @@unique([identifier, value])
+  @@index([identifier])
 }

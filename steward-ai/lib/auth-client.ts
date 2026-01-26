@@ -44,11 +44,17 @@ export async function signIn(provider: string, options?: { redirect?: string }) 
     body: JSON.stringify({
       provider,
       callbackURL,
-      disableRedirect: true,
+      disableRedirect: true, // We handle redirect manually
     }),
   });
 
-  // Expect `{ url }` for oauth redirect
+  if (!res.ok) {
+    const errorText = await res.text().catch(() => "Unknown error");
+    console.error("BetterAuth signIn failed:", { status: res.status, error: errorText });
+    throw new Error(`Sign in failed: ${res.status} ${errorText}`);
+  }
+
+  // Expect `{ url, redirect }` for oauth redirect
   const data = await res.json().catch(() => null);
   const url = data?.url as string | undefined;
   if (url) {
@@ -57,8 +63,8 @@ export async function signIn(provider: string, options?: { redirect?: string }) 
   }
 
   // Fallback: surface something useful in console (avoids silent failure)
-  // eslint-disable-next-line no-console
-  console.error("BetterAuth signIn failed:", { status: res.status, data });
+  console.error("BetterAuth signIn failed: No redirect URL in response", { status: res.status, data });
+  throw new Error("Sign in failed: No redirect URL received");
 }
 
 // Sign out function

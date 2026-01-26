@@ -1,4 +1,4 @@
-﻿const fs = require("fs");
+const fs = require("fs");
 const path = require("path");
 
 // Load .env for this standalone script (Next/Prisma CLI load it automatically, node doesn't)
