@@ -32,7 +32,7 @@ export default function RootLayout({
       >
         <ThemeProvider>
           <I18nProvider>
-            <AppShell>{children}</AppShell>
+        <AppShell>{children}</AppShell>
           </I18nProvider>
         </ThemeProvider>
       </body>

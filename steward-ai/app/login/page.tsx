@@ -41,30 +41,30 @@ export default function LoginPage() {
       <I18nProvider>
         <div className="min-h-dvh flex items-center justify-center bg-[var(--background)] text-[var(--foreground)] p-4">
           <Card className="w-full max-w-md border-[var(--border)] bg-[var(--card)]">
-            <CardHeader className="space-y-1 text-center">
-              <div className="flex justify-center mb-4">
-                <div className="grid size-12 place-items-center rounded-xl bg-[var(--primary)] text-[var(--primary-foreground)]">
-                  <Sparkles className="size-6" />
-                </div>
-              </div>
-              <CardTitle className="text-2xl font-semibold">Welcome to Steward AI</CardTitle>
+        <CardHeader className="space-y-1 text-center">
+          <div className="flex justify-center mb-4">
+            <div className="grid size-12 place-items-center rounded-xl bg-[var(--primary)] text-[var(--primary-foreground)]">
+              <Sparkles className="size-6" />
+            </div>
+          </div>
+          <CardTitle className="text-2xl font-semibold">Welcome to Steward AI</CardTitle>
               <CardDescription className="text-[var(--muted)]">
-                Sign in with your GitHub account to continue
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button
-                onClick={handleGitHubLogin}
-                disabled={isLoading}
-                className="w-full"
-                size="lg"
-              >
-                <Github className="mr-2 h-4 w-4" />
-                {isLoading ? "Connecting..." : "Sign in with GitHub"}
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
+            Sign in with your GitHub account to continue
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button
+            onClick={handleGitHubLogin}
+            disabled={isLoading}
+            className="w-full"
+            size="lg"
+          >
+            <Github className="mr-2 h-4 w-4" />
+            {isLoading ? "Connecting..." : "Sign in with GitHub"}
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
       </I18nProvider>
     </ThemeProvider>
   );

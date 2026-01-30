@@ -68,3 +68,21 @@ model Verification {
 
   @@index([identifier])
 }
+
+// 社交平台热点内容表：用于存储 X（Twitter）等平台抓取的 AI 热点
+model SocialPost {
+  id          String   @id @default(cuid())
+  platform    String
+  postId      String   @unique @map("post_id")
+  author      String
+  content     String   @db.Text
+  url         String
+  likeCount   Int      @default(0) @map("like_count")
+  repostCount Int      @default(0) @map("repost_count")
+  publishTime DateTime @map("publish_time")
+  keyword     String?  // 命中的关键词
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([publishTime])
+  @@map("social_posts")
+}

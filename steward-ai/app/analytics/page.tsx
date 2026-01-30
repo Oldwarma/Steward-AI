@@ -1,13 +1,31 @@
 "use client";
 
 import {
-  BarChart3,
-  Clock,
-  Gauge,
-  TrendingUp,
-  MessageSquareText,
-  Sparkles,
+  Youtube,
+  ExternalLink,
+  Heart,
+  Repeat2,
+  MessageCircle,
+  RefreshCw,
+  Eye,
+  ThumbsUp,
+  MessageSquare,
+  Calendar,
+  User,
 } from "lucide-react";
+import { useSearchParams, useRouter } from "next/navigation";
+
+// X (Twitter) 图标组件
+const XIcon = ({ className }: { className?: string }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    className={className}
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+  </svg>
+);
 import {
   Card,
   CardContent,
@@ -15,270 +33,559 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
 import { useI18n } from "@/contexts/i18n-context";
+import { useState, useEffect } from "react";
 
+interface YouTubeVideo {
+  id: string;
+  title: string;
+  description: string;
+  channelTitle: string;
+  channelId: string;
+  channelUrl: string;
+  publishedAt: string;
+  thumbnails: any;
+  url: string;
+  viewCount: number;
+  likeCount: number;
+  commentCount: number;
+  duration: string;
+}
 
-const trend = [12, 18, 15, 21, 24, 22, 26, 28, 25, 30, 33, 31];
-
-const appRows = [
-  { app: "Chat", users: 812, retention: "38%", notes: "Strong daily use" },
-  { app: "Analytics", users: 294, retention: "24%", notes: "Used by power users" },
-  { app: "Onboarding", users: 178, retention: "52%", notes: "High completion" },
-] as const;
-
-const productCards = [
-  {
-    name: "Chat",
-    icon: MessageSquareText,
-    badge: "日常对话 / 运维问答",
-    points: ["多轮对话", "结合日志 / 文档问答（RAG）", "可挂 Agent 做自动化操作"],
-  },
-  {
-    name: "Analytics",
-    icon: BarChart3,
-    badge: "使用趋势 / 质量监控",
-    points: ["用户活跃与留存分析", "响应耗时 & 成本监控", "误答 & 意图命中率"],
-  },
-  {
-    name: "Steward",
-    icon: Sparkles,
-    badge: "管家能力展示",
-    points: ["统一任务编排", "跨应用洞察汇总", "一键生成运营报告（Demo）"],
-  },
-] as const;
-
-function Sparkline() {
-  const max = Math.max(...trend);
-  const min = Math.min(...trend);
-  const points = trend
-    .map((v, i) => {
-      const x = (i / (trend.length - 1)) * 100;
-      const y = 100 - ((v - min) / (max - min || 1)) * 100;
-      return `${x},${y}`;
-    })
-    .join(" ");
-
-  return (
-    <svg viewBox="0 0 100 100" className="h-20 w-full">
-      <polyline
-        fill="none"
-        stroke="var(--primary)"
-        strokeWidth="3"
-        points={points}
-      />
-    </svg>
-  );
+interface TwitterTweet {
+  id: string;
+  text: string;
+  author: string;
+  authorHandle: string;
+  createdAt: string;
+  likes: number;
+  retweets: number;
+  replies: number;
+  url: string;
 }
 
 export default function AnalyticsPage() {
   const { t } = useI18n();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const [youtubeVideos, setYoutubeVideos] = useState<YouTubeVideo[]>([]);
+  const [twitterTweets, setTwitterTweets] = useState<TwitterTweet[]>([]);
+  const [loadingYoutube, setLoadingYoutube] = useState(false);
+  const [loadingTwitter, setLoadingTwitter] = useState(false);
+  const [errorYoutube, setErrorYoutube] = useState<string | null>(null);
+  const [errorTwitter, setErrorTwitter] = useState<string | null>(null);
+  
+  // 从 URL 参数读取平台，默认为 youtube
+  const platformParam = searchParams.get("platform");
+  const [selectedPlatform, setSelectedPlatform] = useState<"youtube" | "twitter">(
+    platformParam === "twitter" ? "twitter" : "youtube"
+  );
+  const [expandedVideoId, setExpandedVideoId] = useState<string | null>(null);
+  const [expandedTweetId, setExpandedTweetId] = useState<string | null>(null);
 
-  const kpis = [
-    { label: t.analytics.activeUsers, value: "1,284", delta: "+12.4%" },
-    { label: t.analytics.avgResponseTime, value: "820ms", delta: "-8.1%" },
-    { label: t.analytics.conversationsPerDay, value: "3,961", delta: "+19.0%" },
-    { label: t.analytics.toolCalls, value: "7,420", delta: "+6.2%" },
-  ] as const;
+  // 当 URL 参数变化时，更新选中的平台
+  useEffect(() => {
+    const platform = searchParams.get("platform");
+    if (platform === "twitter") {
+      setSelectedPlatform("twitter");
+    } else {
+      // 如果没有参数或参数是 youtube，默认显示 YouTube
+      setSelectedPlatform("youtube");
+      // 如果 URL 中没有 platform 参数，添加默认参数
+      if (!platform) {
+        router.replace("/analytics?platform=youtube");
+      }
+    }
+  }, [searchParams, router]);
+
+  useEffect(() => {
+    // 加载 YouTube 热点（默认加载更多）
+    const loadYouTubeHotspots = async () => {
+      setLoadingYoutube(true);
+      setErrorYoutube(null);
+      try {
+        const response = await fetch("/api/hotspots/youtube?query=AI artificial intelligence technology product&maxResults=20");
+        const data = await response.json();
+        if (response.ok) {
+          setYoutubeVideos(data.videos || []);
+        } else {
+          setErrorYoutube(data.error || "Failed to load YouTube data");
+        }
+      } catch (error) {
+        setErrorYoutube("Failed to fetch YouTube hotspots");
+      } finally {
+        setLoadingYoutube(false);
+      }
+    };
+
+    // 加载 Twitter 热点（默认加载更多）
+    const loadTwitterHotspots = async () => {
+      // 不立即清空数据，保持旧数据可见
+      setLoadingTwitter(true);
+      setErrorTwitter(null);
+      try {
+        const response = await fetch("/api/hotspots/twitter?query=AI artificial intelligence technology product&maxResults=20");
+        const data = await response.json();
+        if (response.ok) {
+          setTwitterTweets(data.tweets || []);
+        } else {
+          setErrorTwitter(data.error || "Failed to load Twitter data");
+        }
+      } catch (error) {
+        setErrorTwitter("Failed to fetch Twitter hotspots");
+      } finally {
+        setLoadingTwitter(false);
+      }
+    };
+
+    // 初始加载两个平台的数据
+    loadYouTubeHotspots();
+    loadTwitterHotspots();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 刷新当前选中的平台数据
+  const refreshCurrentPlatform = async () => {
+    if (selectedPlatform === "youtube") {
+      setLoadingYoutube(true);
+      setErrorYoutube(null);
+      try {
+        const response = await fetch("/api/hotspots/youtube?query=AI artificial intelligence technology product&maxResults=20");
+        const data = await response.json();
+        if (response.ok) {
+          setYoutubeVideos(data.videos || []);
+        } else {
+          setErrorYoutube(data.error || "Failed to load YouTube data");
+        }
+      } catch (error) {
+        setErrorYoutube("Failed to fetch YouTube hotspots");
+      } finally {
+        setLoadingYoutube(false);
+      }
+    } else {
+      // Twitter 刷新时保持旧数据可见
+      setLoadingTwitter(true);
+      setErrorTwitter(null);
+      try {
+        const response = await fetch("/api/hotspots/twitter?query=AI artificial intelligence technology product&maxResults=20");
+        const data = await response.json();
+        if (response.ok) {
+          setTwitterTweets(data.tweets || []);
+        } else {
+          setErrorTwitter(data.error || "Failed to load Twitter data");
+        }
+      } catch (error) {
+        setErrorTwitter("Failed to fetch Twitter hotspots");
+      } finally {
+        setLoadingTwitter(false);
+      }
+    }
+  };
+
+  // 格式化时长（ISO 8601 格式转换为可读格式）
+  const formatDuration = (duration: string) => {
+    if (!duration) return "";
+    const match = duration.match(/PT(\d+H)?(\d+M)?(\d+S)?/);
+    if (!match) return duration;
+    const hours = (match[1] || "").replace("H", "");
+    const minutes = (match[2] || "").replace("M", "");
+    const seconds = (match[3] || "").replace("S", "");
+    const parts = [];
+    if (hours) parts.push(`${hours}小时`);
+    if (minutes) parts.push(`${minutes}分钟`);
+    if (seconds) parts.push(`${seconds}秒`);
+    return parts.join(" ") || duration;
+  };
 
   return (
-    <div className="flex h-full flex-col gap-6 md:grid md:grid-cols-[minmax(0,2.1fr)_minmax(260px,0.9fr)] md:items-stretch">
-      {/* 左侧：整体分析大屏 */}
-      <div className="flex flex-col gap-6 animate-[slide-up-soft_0.35s_ease-out]">
-        <div className="flex items-end justify-between gap-4 rounded-2xl border border-[var(--border)] bg-[var(--card)]/80 px-6 py-4">
-          <div>
-            <div className="text-xs font-medium tracking-widest text-[var(--muted)]">
-              STEWARD ANALYTICS
-            </div>
-            <h1 className="mt-2 text-2xl font-semibold tracking-tight md:text-3xl">
-              {t.analytics.title}
-            </h1>
-          </div>
-          <div className="text-xs text-[var(--muted)]">
-            Last 12 weeks • 全屏可视化
-          </div>
-        </div>
-
-        <section className="grid gap-4 md:grid-cols-4">
-          {kpis.map((k) => (
-            <Card
-              key={k.label}
-              className="transition-all duration-200 hover:-translate-y-1 hover:border-[var(--primary)]/60 hover:shadow-[0_18px_45px_rgba(15,23,42,0.7)]"
-            >
-              <CardHeader>
-                <CardTitle className="text-sm">{k.label}</CardTitle>
-                <CardDescription>{k.delta}</CardDescription>
-              </CardHeader>
-              <CardContent className="text-2xl font-semibold tracking-tight">
-                {k.value}
-              </CardContent>
-            </Card>
-          ))}
-        </section>
-
-        <Tabs
-          defaultValue="trend"
-          className="flex flex-1 flex-col overflow-hidden"
-        >
-          <div className="flex items-center justify-between gap-3">
-            <TabsList>
-              <TabsTrigger value="trend">{t.analytics.trend}</TabsTrigger>
-              <TabsTrigger value="apps">{t.analytics.apps}</TabsTrigger>
-            </TabsList>
-            <div className="hidden items-center gap-3 text-xs text-[var(--muted)] md:flex">
-              <span className="inline-flex items-center gap-1">
-                <Clock className="h-3 w-3" />
-                {t.analytics.realtimeRefresh}
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <Gauge className="h-3 w-3" />
-                {t.analytics.systemHealth}
-              </span>
-            </div>
-          </div>
-
-          <TabsContent
-            value="trend"
-            className="mt-4 flex-1 space-y-4 overflow-hidden data-[state=inactive]:hidden"
-          >
-            <div className="grid h-full gap-4 md:grid-cols-[minmax(0,1.3fr)_minmax(0,0.7fr)]">
-              <Card className="flex flex-col overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:border-[var(--primary)]/50">
+    <div className="flex h-full flex-col gap-6">
+        {/* YouTube 热点详情 */}
+        {selectedPlatform === "youtube" && (
+              <Card className="flex h-full flex-col overflow-hidden">
                 <CardHeader className="flex-shrink-0">
-                  <CardTitle className="flex items-center gap-2">
-                    <BarChart3 className="h-4 w-4 text-[var(--primary)]" />
-                    {t.analytics.conversationGrowth}
-                  </CardTitle>
-                  <CardDescription>
-                    {t.analytics.trendDescription}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="flex flex-1 flex-col">
-                  <div className="flex-1 rounded-2xl border bg-black/10 p-4">
-                    <Sparkline />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="flex flex-col">
-                <CardHeader className="flex-shrink-0">
-                  <CardTitle>{t.analytics.insights}</CardTitle>
-                  <CardDescription>
-                    {t.analytics.insightsDesc}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="flex-1 space-y-3 text-sm text-[var(--muted)]">
-                  <div className="rounded-2xl border bg-white/5 p-4">
-                    - 增长主要来自 Chat 使用频次提升
-                    <br />- 响应耗时下降，可能与缓存 / 路由优化相关
-                  </div>
-                  <div className="rounded-2xl border bg-white/5 p-4">
-                    下一步建议：对 top intents 做 RAG 命中率 &amp; 误答分析，按业务场景优化召回策略。
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent
-            value="apps"
-            className="mt-4 flex-1 overflow-hidden data-[state=inactive]:hidden"
-          >
-            <Card className="flex h-full flex-col overflow-hidden">
-              <CardHeader className="flex-shrink-0">
-                <CardTitle>{t.analytics.appBreakdown}</CardTitle>
-                <CardDescription>
-                  {t.analytics.appBreakdownDesc}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex-1 overflow-auto">
-                <div className="overflow-hidden rounded-2xl border">
-                  <table className="w-full text-left text-sm">
-                    <thead className="bg-white/5 text-[var(--muted)]">
-                      <tr>
-                        <th className="px-4 py-3 font-medium">App</th>
-                        <th className="px-4 py-3 font-medium">Users</th>
-                        <th className="px-4 py-3 font-medium">Retention</th>
-                        <th className="px-4 py-3 font-medium">Notes</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {appRows.map((row) => (
-                        <tr
-                          key={row.app}
-                          className="border-t border-[var(--border)]"
-                        >
-                          <td className="px-4 py-3">{row.app}</td>
-                          <td className="px-4 py-3 text-[var(--muted)]">
-                            {row.users}
-                          </td>
-                          <td className="px-4 py-3 text-[var(--muted)]">
-                            {row.retention}
-                          </td>
-                          <td className="px-4 py-3">{row.notes}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
-
-      {/* 右侧：各产品功能展示 */}
-      <aside className="mt-2 flex flex-col gap-4 md:mt-0">
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)]/80 p-4">
-          <div className="text-xs font-medium tracking-wide text-[var(--muted)]">
-            {t.analytics.productCapabilities}
-          </div>
-          <div className="mt-1 text-sm font-semibold">
-            {t.analytics.productMatrix}
-          </div>
-          <div className="mt-2 text-xs text-[var(--muted)]">
-            {t.analytics.productMatrixDesc}
-          </div>
-        </div>
-
-        {productCards.map((p) => {
-          const Icon = p.icon;
-          return (
-            <Card
-              key={p.name}
-              className="flex flex-col border-[var(--border)]/80 bg-[var(--card)]/90"
-            >
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <div className="grid h-8 w-8 place-items-center rounded-xl bg-white/5">
-                      <Icon className="h-4 w-4 text-[var(--primary)]" />
-                    </div>
+                  <div className="flex items-center justify-between">
                     <div>
-                      <CardTitle className="text-base">{p.name}</CardTitle>
-                      <CardDescription className="text-xs">
-                        {p.badge}
-                      </CardDescription>
+                      <CardTitle className="flex items-center gap-2">
+                        <Youtube className="h-5 w-5 text-red-500" />
+                        {t.analytics.youtubeHotspots}
+                      </CardTitle>
+                      <CardDescription>AI 相关热门视频 - {youtubeVideos.length} 个结果</CardDescription>
                     </div>
+                    <button
+                      onClick={refreshCurrentPlatform}
+                      disabled={loadingYoutube}
+                      className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs text-[var(--muted)] transition-colors hover:bg-white/10 hover:text-white disabled:opacity-50"
+                    >
+                      <RefreshCw className={`h-3.5 w-3.5 ${loadingYoutube ? "animate-spin" : ""}`} />
+                      {t.analytics.refresh}
+                    </button>
                   </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-1.5 text-xs text-[var(--muted)]">
-                {p.points.map((pt) => (
-                  <div key={pt} className="flex items-start gap-2">
-                    <span className="mt-[3px] h-1.5 w-1.5 rounded-full bg-[var(--primary)]/80" />
-                    <span>{pt}</span>
+                </CardHeader>
+                <CardContent className="flex-1 overflow-auto space-y-4">
+                  {loadingYoutube ? (
+                    <div className="flex items-center justify-center py-12 text-sm text-[var(--muted)]">
+                      <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+                      {t.analytics.loading}
+                    </div>
+                  ) : errorYoutube ? (
+                    <div className="flex items-center justify-center py-12 text-sm text-red-500">
+                      {errorYoutube}
+                    </div>
+                  ) : youtubeVideos.length === 0 ? (
+                    <div className="flex items-center justify-center py-12 text-sm text-[var(--muted)]">
+                      {t.analytics.noData}
+                    </div>
+                  ) : (
+                    youtubeVideos.map((video) => {
+                      const isExpanded = expandedVideoId === video.id;
+                      return (
+                        <div
+                          key={video.id}
+                          className="rounded-xl border border-[var(--border)] bg-white/5 transition-all hover:bg-white/10 hover:border-[var(--primary)]/50 cursor-pointer"
+                          onClick={() => setExpandedVideoId(isExpanded ? null : video.id)}
+                        >
+                          <div className="p-4">
+                            <div className="flex gap-4">
+                              {video.thumbnails?.medium?.url && (
+                                <a
+                                  href={video.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex-shrink-0"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <img
+                                    src={video.thumbnails.medium.url}
+                                    alt={video.title}
+                                    className="h-32 w-48 rounded-lg object-cover"
+                                  />
+                                </a>
+                              )}
+                              <div className="flex-1 min-w-0 space-y-3">
+                                <div>
+                                  <a
+                                    href={video.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="group"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <h3 className="text-base font-semibold mb-2 line-clamp-2 group-hover:text-[var(--primary)] transition-colors">
+                                      {video.title}
+                                    </h3>
+                                  </a>
+                                  <div className="flex items-center gap-4 text-xs text-[var(--muted)] mb-2">
+                                    <a
+                                      href={video.channelUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex items-center gap-1 hover:text-white transition-colors"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <User className="h-3 w-3" />
+                                      {video.channelTitle}
+                                    </a>
+                                    <span className="flex items-center gap-1">
+                                      <Calendar className="h-3 w-3" />
+                                      {new Date(video.publishedAt).toLocaleDateString()}
+                                    </span>
+                                  </div>
+                                  {video.description && (
+                                    <p className={`text-sm text-[var(--muted)] mb-3 ${isExpanded ? "" : "line-clamp-2"}`}>
+                                      {video.description}
+                                    </p>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-6 text-sm flex-wrap">
+                                  <div className="flex items-center gap-2 text-[var(--muted)]">
+                                    <Eye className="h-4 w-4" />
+                                    <span>{video.viewCount.toLocaleString()}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 text-[var(--muted)]">
+                                    <ThumbsUp className="h-4 w-4" />
+                                    <span>{video.likeCount.toLocaleString()}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 text-[var(--muted)]">
+                                    <MessageSquare className="h-4 w-4" />
+                                    <span>{video.commentCount.toLocaleString()}</span>
+                                  </div>
+                                  {video.duration && (
+                                    <div className="text-xs text-[var(--muted)]">
+                                      {formatDuration(video.duration)}
+                                    </div>
+                                  )}
+                                  <a
+                                    href={video.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="ml-auto flex items-center gap-1 text-xs text-[var(--primary)] hover:underline"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {t.analytics.watchOnYouTube}
+                                    <ExternalLink className="h-3 w-3" />
+                                  </a>
+                                </div>
+                                {isExpanded && (
+                                  <div className="mt-4 pt-4 border-t border-[var(--border)] space-y-2">
+                                    <div className="text-xs text-[var(--muted)]">
+                                      <strong>视频 ID:</strong> {video.id}
+                                    </div>
+                                    <div className="text-xs text-[var(--muted)]">
+                                      <strong>频道 ID:</strong> {video.channelId}
+                                    </div>
+                                    <div className="text-xs text-[var(--muted)]">
+                                      <strong>发布时间:</strong> {new Date(video.publishedAt).toLocaleString()}
+                                    </div>
+                                    <a
+                                      href={video.channelUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1 text-xs text-[var(--primary)] hover:underline"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      查看频道
+                                      <ExternalLink className="h-3 w-3" />
+                                    </a>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+        {/* Twitter 热点详情 */}
+            {selectedPlatform === "twitter" && (
+              <Card className="flex h-full flex-col overflow-hidden">
+                <CardHeader className="flex-shrink-0">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <XIcon className="h-5 w-5 text-white" />
+                        {t.analytics.twitterHotspots}
+                      </CardTitle>
+                      <CardDescription>AI 相关热门推文 - {twitterTweets.length} 个结果</CardDescription>
+                    </div>
+                    <button
+                      onClick={refreshCurrentPlatform}
+                      disabled={loadingTwitter}
+                      className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs text-[var(--muted)] transition-colors hover:bg-white/10 hover:text-white disabled:opacity-50"
+                    >
+                      <RefreshCw className={`h-3.5 w-3.5 ${loadingTwitter ? "animate-spin" : ""}`} />
+                      {t.analytics.refresh}
+                    </button>
                   </div>
-                ))}
-              </CardContent>
-            </Card>
-          );
-        })}
-      </aside>
+                </CardHeader>
+                <CardContent className="flex-1 overflow-auto space-y-4">
+                  {loadingTwitter && twitterTweets.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12 space-y-3 text-sm text-[var(--muted)]">
+                      <RefreshCw className="h-5 w-5 animate-spin" />
+                      <div className="text-center">
+                        <div className="font-medium mb-1">正在抓取 Twitter 数据...</div>
+                        <div className="text-xs opacity-75">这可能需要 10-30 秒，请稍候</div>
+                      </div>
+                    </div>
+                  ) : loadingTwitter && twitterTweets.length > 0 ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-center gap-2 py-2 text-xs text-[var(--muted)] bg-white/5 rounded-lg">
+                        <RefreshCw className="h-3 w-3 animate-spin" />
+                        <span>正在更新数据...</span>
+                      </div>
+                      {twitterTweets.map((tweet) => {
+                        const isExpanded = expandedTweetId === tweet.id;
+                        return (
+                          <div
+                            key={tweet.id}
+                            className="rounded-xl border border-[var(--border)] bg-white/5 transition-all hover:bg-white/10 hover:border-[var(--primary)]/50 cursor-pointer opacity-75"
+                            onClick={() => setExpandedTweetId(isExpanded ? null : tweet.id)}
+                          >
+                            <div className="p-4">
+                              <div className="space-y-3">
+                                <div className="flex items-start justify-between gap-4">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                      <User className="h-4 w-4 text-[var(--muted)]" />
+                                      <span className="text-sm font-semibold">{tweet.author}</span>
+                                      <span className="text-xs text-[var(--muted)]">
+                                        @{tweet.authorHandle}
+                                      </span>
+                                      <span className="text-xs text-[var(--muted)] flex items-center gap-1">
+                                        <Calendar className="h-3 w-3" />
+                                        {new Date(tweet.createdAt).toLocaleString()}
+                                      </span>
+                                    </div>
+                                    <p className={`text-sm text-[var(--foreground)] leading-relaxed mb-3 ${isExpanded ? "" : "line-clamp-3"}`}>
+                                      {tweet.text}
+                                    </p>
+                                  </div>
+                                  <a
+                                    href={tweet.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex-shrink-0 text-xs text-[var(--primary)] hover:underline"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <ExternalLink className="h-4 w-4" />
+                                  </a>
+                                </div>
+                                <div className="flex items-center gap-6 pt-3 border-t border-[var(--border)] flex-wrap">
+                                  <div className="flex items-center gap-2 text-sm text-[var(--muted)]">
+                                    <Heart className="h-4 w-4" />
+                                    <span className="font-medium">{tweet.likes.toLocaleString()}</span>
+                                    <span className="text-xs">{t.analytics.likes}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 text-sm text-[var(--muted)]">
+                                    <Repeat2 className="h-4 w-4" />
+                                    <span className="font-medium">{tweet.retweets.toLocaleString()}</span>
+                                    <span className="text-xs">{t.analytics.retweets}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 text-sm text-[var(--muted)]">
+                                    <MessageCircle className="h-4 w-4" />
+                                    <span className="font-medium">{tweet.replies.toLocaleString()}</span>
+                                    <span className="text-xs">{t.analytics.replies}</span>
+                                  </div>
+                                  <a
+                                    href={tweet.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="ml-auto flex items-center gap-1 text-xs text-[var(--primary)] hover:underline"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {t.analytics.viewOnTwitter}
+                                    <ExternalLink className="h-3 w-3" />
+                                  </a>
+                                </div>
+                                {isExpanded && (
+                                  <div className="mt-4 pt-4 border-t border-[var(--border)] space-y-2">
+                                    <div className="text-xs text-[var(--muted)]">
+                                      <strong>推文 ID:</strong> {tweet.id}
+                                    </div>
+                                    <div className="text-xs text-[var(--muted)]">
+                                      <strong>作者:</strong> {tweet.author} (@{tweet.authorHandle})
+                                    </div>
+                                    <div className="text-xs text-[var(--muted)]">
+                                      <strong>创建时间:</strong> {new Date(tweet.createdAt).toLocaleString()}
+                                    </div>
+                                    <div className="text-xs text-[var(--muted)]">
+                                      <strong>完整内容:</strong>
+                                      <div className="mt-1 p-2 bg-white/5 rounded border border-[var(--border)]">
+                                        {tweet.text}
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : errorTwitter ? (
+                    <div className="flex items-center justify-center py-12 text-sm text-red-500">
+                      {errorTwitter}
+                    </div>
+                  ) : twitterTweets.length === 0 ? (
+                    <div className="flex items-center justify-center py-12 text-sm text-[var(--muted)]">
+                      {t.analytics.noData}
+                    </div>
+                  ) : (
+                    twitterTweets.map((tweet) => {
+                      const isExpanded = expandedTweetId === tweet.id;
+                      return (
+                        <div
+                          key={tweet.id}
+                          className="rounded-xl border border-[var(--border)] bg-white/5 transition-all hover:bg-white/10 hover:border-[var(--primary)]/50 cursor-pointer"
+                          onClick={() => setExpandedTweetId(isExpanded ? null : tweet.id)}
+                        >
+                          <div className="p-4">
+                            <div className="space-y-3">
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                    <User className="h-4 w-4 text-[var(--muted)]" />
+                                    <span className="text-sm font-semibold">{tweet.author}</span>
+                                    <span className="text-xs text-[var(--muted)]">
+                                      @{tweet.authorHandle}
+                                    </span>
+                                    <span className="text-xs text-[var(--muted)] flex items-center gap-1">
+                                      <Calendar className="h-3 w-3" />
+                                      {new Date(tweet.createdAt).toLocaleString()}
+                                    </span>
+                                  </div>
+                                  <p className={`text-sm text-[var(--foreground)] leading-relaxed mb-3 ${isExpanded ? "" : "line-clamp-3"}`}>
+                                    {tweet.text}
+                                  </p>
+                                </div>
+                                <a
+                                  href={tweet.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex-shrink-0 text-xs text-[var(--primary)] hover:underline"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                </a>
+                              </div>
+                              <div className="flex items-center gap-6 pt-3 border-t border-[var(--border)] flex-wrap">
+                                <div className="flex items-center gap-2 text-sm text-[var(--muted)]">
+                                  <Heart className="h-4 w-4" />
+                                  <span className="font-medium">{tweet.likes.toLocaleString()}</span>
+                                  <span className="text-xs">{t.analytics.likes}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-sm text-[var(--muted)]">
+                                  <Repeat2 className="h-4 w-4" />
+                                  <span className="font-medium">{tweet.retweets.toLocaleString()}</span>
+                                  <span className="text-xs">{t.analytics.retweets}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-sm text-[var(--muted)]">
+                                  <MessageCircle className="h-4 w-4" />
+                                  <span className="font-medium">{tweet.replies.toLocaleString()}</span>
+                                  <span className="text-xs">{t.analytics.replies}</span>
+                                </div>
+                                <a
+                                  href={tweet.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="ml-auto flex items-center gap-1 text-xs text-[var(--primary)] hover:underline"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  {t.analytics.viewOnTwitter}
+                                  <ExternalLink className="h-3 w-3" />
+                                </a>
+                              </div>
+                              {isExpanded && (
+                                <div className="mt-4 pt-4 border-t border-[var(--border)] space-y-2">
+                                  <div className="text-xs text-[var(--muted)]">
+                                    <strong>推文 ID:</strong> {tweet.id}
+                                  </div>
+                                  <div className="text-xs text-[var(--muted)]">
+                                    <strong>作者:</strong> {tweet.author} (@{tweet.authorHandle})
+                                  </div>
+                                  <div className="text-xs text-[var(--muted)]">
+                                    <strong>创建时间:</strong> {new Date(tweet.createdAt).toLocaleString()}
+                                  </div>
+                                  <div className="text-xs text-[var(--muted)]">
+                                    <strong>完整内容:</strong>
+                                    <div className="mt-1 p-2 bg-white/5 rounded border border-[var(--border)]">
+                                      {tweet.text}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </CardContent>
+              </Card>
+            )}
     </div>
   );
 }

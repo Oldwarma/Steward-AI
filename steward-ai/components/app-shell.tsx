@@ -1,27 +1,54 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { BarChart3, MessageSquareText, Sparkles, Languages, Palette, Github } from "lucide-react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { BarChart3, MessageSquareText, Sparkles, Languages, Palette, Github, ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/contexts/i18n-context";
 import { useTheme, Theme } from "@/contexts/theme-context";
 import { MeteorLayer } from "@/components/meteor-layer";
 import { useSession, signOut } from "@/lib/auth-client";
 import { LogIn, LogOut, User } from "lucide-react";
+import { useState } from "react";
+
+// YouTube Logo 组件（使用官方颜色）
+const YouTubeIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+  </svg>
+);
+
+// X (Twitter) Logo 组件（使用官方设计）
+const XIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+  </svg>
+);
 
 const navItems = [
   { href: "/", key: "home" as const, icon: Sparkles },
   { href: "/chat", key: "chat" as const, icon: MessageSquareText },
-  { href: "/analytics", key: "analytics" as const, icon: BarChart3 },
+  { 
+    href: "/analytics", 
+    key: "analytics" as const, 
+    icon: BarChart3,
+    submenu: [
+      { href: "/analytics?platform=youtube", key: "youtube" as const, icon: YouTubeIcon, label: "YouTube" },
+      { href: "/analytics?platform=twitter", key: "twitter" as const, icon: XIcon, label: "X" },
+    ],
+  },
 ] as const;
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const isAnalytics = pathname?.startsWith("/analytics");
   const { locale, setLocale, t } = useI18n();
   const { theme, setTheme } = useTheme();
   const { data: session, isPending } = useSession();
+  const [expandedNav, setExpandedNav] = useState<string | null>(
+    isAnalytics ? "/analytics" : null
+  );
 
   return (
     <div className="min-h-dvh bg-[var(--background)] text-[var(--foreground)] relative">
@@ -70,20 +97,85 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   ? pathname === "/"
                   : pathname?.startsWith(item.href);
               const Icon = item.icon;
+              const hasSubmenu = "submenu" in item && item.submenu;
+              const isExpanded = expandedNav === item.href;
+              
               return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    "flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition-colors duration-150 hover:-translate-y-0.5",
-                    active
-                      ? "bg-white/5 text-white"
-                      : "text-[var(--muted)] hover:bg-white/5 hover:text-white",
+                <div key={item.href}>
+                  {hasSubmenu ? (
+                    <>
+                      <button
+                        onClick={() => setExpandedNav(isExpanded ? null : item.href)}
+                        className={cn(
+                          "flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-sm transition-colors duration-150 hover:-translate-y-0.5",
+                          active
+                            ? "bg-white/5 text-white"
+                            : "text-[var(--muted)] hover:bg-white/5 hover:text-white",
+                        )}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Icon className="size-4" />
+                          <span>{t.nav[item.key]}</span>
+                        </div>
+                        {isExpanded ? (
+                          <ChevronDown className="size-3" />
+                        ) : (
+                          <ChevronRight className="size-3" />
+                        )}
+                      </button>
+                      {isExpanded && (
+                        <div className="ml-4 mt-1 space-y-1 border-l border-[var(--border)] pl-3">
+                          {item.submenu.map((subItem) => {
+                            const SubIcon = subItem.icon;
+                            const params = new URLSearchParams();
+                            if (subItem.key === "youtube") {
+                              params.set("platform", "youtube");
+                            } else if (subItem.key === "twitter") {
+                              params.set("platform", "twitter");
+                            }
+                            const subHref = `${item.href}?${params.toString()}`;
+                            
+                            // 判断子菜单项是否激活：检查 URL 参数
+                            const currentPlatform = searchParams.get("platform");
+                            const isSubActive = pathname?.startsWith(item.href) && 
+                              (subItem.key === "youtube" 
+                                ? (currentPlatform === "youtube" || (!currentPlatform && subItem.key === "youtube"))
+                                : currentPlatform === "twitter");
+                            
+                            return (
+                              <Link
+                                key={subItem.href}
+                                href={subHref}
+                                className={cn(
+                                  "flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs transition-colors duration-150",
+                                  isSubActive
+                                    ? "bg-white/5 text-white"
+                                    : "text-[var(--muted)] hover:bg-white/5 hover:text-white",
+                                )}
+                              >
+                                <SubIcon className={cn("size-3.5", subItem.key === "youtube" ? "text-red-500" : "")} />
+                                <span>{subItem.label}</span>
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <Link
+                      href={item.href}
+                      className={cn(
+                        "flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition-colors duration-150 hover:-translate-y-0.5",
+                        active
+                          ? "bg-white/5 text-white"
+                          : "text-[var(--muted)] hover:bg-white/5 hover:text-white",
+                      )}
+                    >
+                      <Icon className="size-4" />
+                      <span>{t.nav[item.key]}</span>
+                    </Link>
                   )}
-                >
-                  <Icon className="size-4" />
-                  <span>{t.nav[item.key]}</span>
-                </Link>
+                </div>
               );
             })}
           </nav>
@@ -148,18 +240,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="min-w-0">
           {!isAnalytics && (
             <header className="rounded-2xl border border-[var(--border)] bg-[var(--card)] px-5 py-4">
-              <div>
-                <div className="text-sm text-[var(--muted)]">
+                <div>
+                  <div className="text-sm text-[var(--muted)]">
                   {t.common.stewardConsole}
-                </div>
-                <div className="text-lg font-semibold tracking-tight">
-                  {pathname === "/"
+                  </div>
+                  <div className="text-lg font-semibold tracking-tight">
+                    {pathname === "/"
                     ? t.common.overview
-                    : pathname?.startsWith("/chat")
+                      : pathname?.startsWith("/chat")
                       ? t.common.conversation
-                      : pathname?.startsWith("/analytics")
+                        : pathname?.startsWith("/analytics")
                         ? t.nav.analytics
-                        : "Steward"}
+                          : "Steward"}
                 </div>
               </div>
             </header>
